@@ -326,3 +326,95 @@ sudo apt update
 sudo apt install nginx
 ```
 You can now access the NGINX welcome page at `http://<your-gcp-vm-external-ip>`.
+
+## 3. NGINX Configuration File
+
+Everything NGINX does, from serving a simple html page to managing a web of complex microservices, is controlled by a plain text file or rather a configuration file. To become more proficient in NGINX, it is important to understand the structure of these files.
+
+On Ubuntu, NGINX configuration files live in the `/etc/nginx/` directory. But NGINX uses a very smart system to manage different website configs. Let's break down the important locations.
+
+*   **/etc/nginx/nginx.conf**: This is the main configuration file. It controls the high-level settings, like how many worker processes NGINX should run. We rarely need to edit this file directly.
+
+*   **/etc/nginx/sites-available/**: This is your storage folder. You create and save the configuration file for every single website you manage here. Think of it as a collection of blueprints; each file is a blueprint for a different site, whether it's active or not.
+
+*   **/etc/nginx/sites-enabled/**: This is the "live" folder. NGINX only reads this directory to see which websites it should actually run. To activate a site, you create a shortcut (a symbolic link) from its blueprint in `sites-available` into this folder.
+
+This system helps in quickly turning the website on and off. To disable a site, you just delete its symbolic link from `sites-enabled`. The original configuration file remains safe in `sites-available`, ready to be re-enabled later.
+
+### b. Structure: The "Grammar"
+
+The NGINX configuration has a very simple grammar. It's made up of two things:
+
+1.  **Directives:** These are single-line instructions. They consist of a key and a value, and they always end with a semicolon `;`.
+    ```nginx
+    # Directive 'worker_processes' with value 'auto'
+    worker_processes auto;
+    ```
+
+2.  **Blocks (or Contexts):** These are containers for directives and other blocks. They group settings for a specific context. A block is defined by a name followed by curly braces `{}`.
+    ```nginx
+    # A block named 'http'
+    http {
+        # This block contains directives inside of it
+        include       /etc/nginx/mime.types;
+        default_type  application/octet-stream;
+    }
+    ```
+Think of it like nested boxes. You have a big `http` box, and inside it, you can have smaller `server` boxes, and inside those, you have even smaller `location` boxes.
+
+### c. The Core Blocks:
+
+The Block ecosystem follows a hierarchy.
+
+#### The `events` block
+This block sits at the top level and deals with connection processing.
+```nginx
+events {
+    worker_connections 768; # How many connections each worker can handle
+}
+```
+For the most part, we can leave this block with its default settings.
+
+#### The `http` block
+This is the main container for all of your web-related configurations. Almost everything we do will live inside this block.
+```nginx
+http {
+    # Directives here apply to all websites (server blocks) that we define inside this http block.
+
+    # ... server blocks go here ...
+}
+```
+
+#### The `server` block
+
+Each `server` block defines a separate virtual server, or website. This is how NGINX can host multiple websites on a single machine.
+```nginx
+server {
+    # This server block "listens" for traffic on port 80 (standard HTTP)
+    listen 80;
+
+    # It responds to requests for 'yourdomain.com' or 'www.yourdomain.com'
+    server_name yourdomain.com www.yourdomain.com;
+
+    # ... location blocks go here ...
+}
+```
+
+#### The `location` block
+This is arguably the most powerful block. It lives inside a `server` block and lets you decide what to do with a request based on its URL.
+
+```nginx
+location / {
+    # This block matches ANY request, since all URLs start with "/"
+    # It's a great "catch-all"
+}
+
+location /images/ {
+    # This block will only match requests for URLs that start with /images/, like yourdomain.com/images/logo.png
+}
+
+location /api/ {
+    # This block will only match requests for your API, like yourdomain.com/api/users
+}
+```
+Inside a `location` block, you use directives to tell NGINX what to do with the matched request—serve a file, pass the request to another server, return an error, etc.
